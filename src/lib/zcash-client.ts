@@ -2,11 +2,9 @@ import { WalletBalance } from '@/types';
 
 // Get API key from env or localStorage
 function getApiKey(): string {
-  // First check environment variable
   if (process.env.NEXT_PUBLIC_NOWNODES_API_KEY) {
     return process.env.NEXT_PUBLIC_NOWNODES_API_KEY;
   }
-  // Then check localStorage
   if (typeof window !== 'undefined') {
     return localStorage.getItem('zcash_api_key') || '';
   }
@@ -25,6 +23,9 @@ function getSettings(): { useNownodes?: boolean } {
 
 // Nownodes blockbook endpoint
 const NOWNODES_BASE = 'https://zec.nownodes.io/api/v2';
+
+// Zcash mainnet lightwalletd
+const MAINNET_SERVER = 'https://mainnet.zecwallet.co';
 
 async function nownodesCall<T>(path: string): Promise<T> {
   const apiKey = getApiKey();
@@ -45,30 +46,42 @@ async function nownodesCall<T>(path: string): Promise<T> {
   return response.json();
 }
 
-// Get balance using Nownodes
-export async function getBalance(address: string): Promise<WalletBalance> {
-  const settings = getSettings();
-  const apiKey = getApiKey();
+async function mainnetCall<T>(method: string, params: unknown[] = []): Promise<T> {
+  const response = await fetch(`${MAINNET_SERVER}/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  });
 
-  // Try Nownodes if enabled and has API key
-  if (settings.useNownodes && apiKey) {
-    try {
-      const result = await nownodesCall<any>(`/address/${address}`);
-      return {
-        address,
-        balance: parseFloat(result.balance) || 0,
-        unconfirmedBalance: parseFloat(result.unconfirmedBalance) || 0,
-        transparentBalance: parseFloat(result.balance) || 0,
-        shieldedBalance: 0,
-      };
-    } catch (err) {
-      console.error('Nownodes error:', err);
-    }
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
   }
 
-  return {
-    address, balance: 0, shieldedBalance: 0, transparentBalance: 0, unconfirmedBalance: 0
-  };
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error.message || 'RPC error');
+  }
+  return data.result;
+}
+
+// Get balance from mainnet
+export async function getBalance(address: string): Promise<WalletBalance> {
+  try {
+    const result = await mainnetCall<any>('getaddressbalance', [{ address }]);
+    const satoshis = result || 0;
+    return {
+      address,
+      balance: satoshis / 100000000,
+      shieldedBalance: satoshis / 100000000,
+      transparentBalance: 0,
+      unconfirmedBalance: 0,
+    };
+  } catch (err) {
+    console.error('Mainnet error:', err);
+    return {
+      address, balance: 0, shieldedBalance: 0, transparentBalance: 0, unconfirmedBalance: 0
+    };
+  }
 }
 
 export async function getBalances(addresses: string[]): Promise<WalletBalance[]> {
@@ -93,21 +106,12 @@ export function getAddressType(address: string): 't-address' | 'z-address' | nul
 }
 
 export async function checkConnection(): Promise<{ connected: boolean; endpoint: string; error?: string }> {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return { connected: false, endpoint: 'Nownodes', error: 'API key not configured' };
-  }
-
   try {
-    await nownodesCall<any>('/address/tmRs5wP4FHcyPLXKHDHWzV7a9R4oN6gV5oX');
-    return { connected: true, endpoint: 'Nownodes' };
+    await mainnetCall<any>('getinfo');
+    return { connected: true, endpoint: 'Zcash Mainnet' };
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : '';
-    if (errorMsg.includes('Unknown API_key')) {
-      return { connected: false, endpoint: 'Nownodes', error: 'Invalid API key - check your Nownodes dashboard' };
-    }
-    return { connected: false, endpoint: 'Nownodes', error: errorMsg };
+    const errorMsg = err instanceof Error ? err.message : 'Connection failed';
+    return { connected: false, endpoint: 'Zcash Mainnet', error: errorMsg };
   }
 }
 
@@ -127,24 +131,13 @@ export function getDemoBalance(address: string): WalletBalance {
 }
 
 export async function getTransactions(address: string): Promise<any[]> {
-  const settings = getSettings();
-  const apiKey = getApiKey();
-  if (settings.useNownodes && apiKey) {
-    try {
-      const result = await nownodesCall<any>(`/address/${address}`);
-      return result.transactions || [];
-    } catch { return []; }
-  }
-  return [];
+  try {
+    return await mainnetCall<any[]>('getaddresstransactions', [{ address }]);
+  } catch { return []; }
 }
 
 export async function getUTXOs(address: string): Promise<any[]> {
-  const settings = getSettings();
-  const apiKey = getApiKey();
-  if (settings.useNownodes && apiKey) {
-    try {
-      return await nownodesCall<any[]>(`/utxo/${address}`);
-    } catch { return []; }
-  }
-  return [];
+  try {
+    return await mainnetCall<any[]>('getaddressutxos', [{ address }]);
+  } catch { return []; }
 }
