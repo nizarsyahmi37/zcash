@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0d0d0d;
+  --foreground: #f5e6c8;
+  --gold: #ffd700;
+  --gold-bright: #ffeb3b;
+  --gold-dim: #b8860b;
+  --gold-glow: rgba(255, 215, 0, 0.3);
+  --card-bg: #1a1a1a;
+  --card-border: #2d2d2d;
+  --input-bg: #1a1a1a;
+  --input-border: #333333;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(ellipse at top, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(184, 134, 11, 0.03) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gold-dim);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* Neon glow effects */
+.gold-glow {
+  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px rgba(255, 215, 0, 0.1);
+}
+
+.gold-text-glow {
+  text-shadow: 0 0 10px var(--gold-glow), 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.gold-border {
+  border: 1px solid var(--gold-dim);
+}
+
+.gold-border-glow {
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 10px var(--gold-glow);
+}
